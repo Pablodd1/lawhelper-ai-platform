@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LawHelper AI - Legal Document Automation & Research</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: #f8f9fa;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #f39c12;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #f39c12;
+        }
+        
+        .hero {
+            margin-top: 80px;
+            padding: 4rem 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: #f39c12;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .cta-button:hover {
+            background: #e67e22;
+        }
+        
+        .features {
+            padding: 4rem 0;
+            background: white;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #2c3e50;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 10px;
+            border-left: 4px solid #f39c12;
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        
+        .document-workspace {
+            padding: 4rem 0;
+            background: #ecf0f1;
+        }
+        
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+        
+        .workspace-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .cta-section {
+            padding: 4rem 0;
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .pricing-card {
+            background: white;
+            color: #2c3e50;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .pricing-card.featured {
+            border: 3px solid #f39c12;
+            transform: scale(1.05);
+        }
+        
+        .price {
+            font-size: 3rem;
+            color: #f39c12;
+            font-weight: bold;
+        }
+        
+        footer {
+            background: #1a1a2e;
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .footer-section h4 {
+            color: #f39c12;
+            margin-bottom: 1rem;
+        }
+        
+        .footer-section ul {
+            list-style: none;
+        }
+        
+        .footer-section a {
+            color: #bdc3c7;
+            text-decoration: none;
+        }
+        
+        .footer-section a:hover {
+            color: #f39c12;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">⚖️ LawHelper AI</div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#workspace">Workspace</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>LawHelper AI: Legal Document Automation</h1>
+            <p>AI-powered legal research, document drafting, and case analysis for modern law practices</p>
+            <a href="#features" class="cta-button">Explore Features</a>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">🧠 AI-Powered Legal Tools</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📄</div>
+                    <h3>Document Automation</h3>
+                    <p>Generate contracts, pleadings, and legal documents in minutes with AI-powered templates that adapt to your specific case requirements.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Legal Research AI</h3>
+                    <p>Instant case law research with natural language queries. Find relevant precedents, statutes, and regulations faster than traditional methods.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Case Analysis</h3>
+                    <p>Analyze case strengths, predict outcomes, and identify key legal issues with machine learning algorithms trained on millions of cases.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>Contract Review</h3>
+                    <p>AI reviews contracts for risks, inconsistencies, and missing clauses. Get instant redlines and suggested improvements.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Discovery Assistant</h3>
+                    <p>Automated document review for discovery processes. Identify relevant documents and extract key information efficiently.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💼</div>
+                    <h3>Client Intake</h3>
+                    <p>Smart forms that adapt based on case type, automatically gathering relevant information and creating case files.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="document-workspace" id="workspace">
+        <div class="container">
+            <h2 class="section-title">🛠️ Intelligent Legal Workspace</h2>
+            <div class="workspace-grid">
+                <div class="workspace-card">
+                    <h3>📋 Draft Assistant</h3>
+                    <p>Smart document drafting with context-aware suggestions, automatic citation formatting, and style consistency checks.</p>
+                </div>
+                <div class="workspace-card">
+                    <h3>⚡ Quick Templates</h3>
+                    <p>Pre-built templates for common legal documents: NDAs, employment contracts, wills, powers of attorney, and more.</p>
+                </div>
+                <div class="workspace-card">
+                    <h3>🔎 Citation Finder</h3>
+                    <p>Automatically find and insert relevant case citations, statutes, and legal authorities to support your arguments.</p>
+                </div>
+                <div class="workspace-card">
+                    <h3>👥 Collaboration Tools</h3>
+                    <p>Real-time collaboration with colleagues, version control, and secure client sharing with granular permissions.</p>
+                </div>
+                <div class="workspace-card">
+                    <h3>📊 Analytics Dashboard</h3>
+                    <p>Track document creation time, case success rates, and practice efficiency metrics to optimize your workflow.</p>
+                </div>
+                <div class="workspace-card">
+                    <h3>🔐 Security First</h3>
+                    <p>Bank-grade encryption, audit trails, and compliance with attorney-client privilege protection standards.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <h2>Ready to Transform Your Legal Practice?</h2>
+            <p>Join thousands of lawyers who have revolutionized their document workflow</p>
+            <a href="#pricing" class="cta-button">Get Started Today</a>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <h2 class="section-title">Simple, Transparent Pricing</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3>Starter</h3>
+                    <div class="price">$99<span style="font-size: 1rem;">/mo</span></div>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✅ Up to 50 documents/month</li>
+                        <li>✅ Basic templates</li>
+                        <li>✅ Legal research (limited)</li>
+                        <li>✅ Email support</li>
+                    </ul>
+                    <a href="#" class="cta-button" style="display: block; margin-top: 1rem;">Start Free Trial</a>
+                </div>
+                <div class="pricing-card featured">
+                    <h3>Professional</h3>
+                    <div class="price">$299<span style="font-size: 1rem;">/mo</span></div>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✅ Unlimited documents</li>
+                        <li>✅ All templates + custom</li>
+                        <li>✅ Advanced legal research</li>
+                        <li>✅ Contract analysis</li>
+                        <li>✅ Priority support</li>
+                    </ul>
+                    <a href="#" class="cta-button" style="display: block; margin-top: 1rem;">Start Free Trial</a>
+                </div>
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">Custom</div>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>✅ Everything in Professional</li>
+                        <li>✅ White-label options</li>
+                        <li>✅ API access</li>
+                        <li>✅ Dedicated support</li>
+                        <li>✅ Custom integrations</li>
+                    </ul>
+                    <a href="#" class="cta-button" style="display: block; margin-top: 1rem;">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#">Document Automation</a></li>
+                        <li><a href="#">Legal Research</a></li>
+                        <li><a href="#">Contract Analysis</a></li>
+                        <li><a href="#">Case Management</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">API Reference</a></li>
+                        <li><a href="#">Legal Blog</a></li>
+                        <li><a href="#">Webinars</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Support</a></li>
+                        <li><a href="#">Training</a></li>
+                        <li><a href="#">Status</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Privacy</a></li>
+                        <li><a href="#">Terms</a></li>
+                    </ul>
+                </div>
+            </div>
+            <p>&copy; 2024 LawHelper AI. All rights reserved. | Making legal work more efficient through AI.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Add scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe cards for animation
+        document.querySelectorAll('.feature-card, .workspace-card, .pricing-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
