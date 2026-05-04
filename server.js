@@ -232,8 +232,8 @@ class LegalResearchEngine {
         const allCases = results.flat();
         
         // Remove duplicates and rank by relevance
-        const uniqueCases = allCases.filter((case, index, self) => 
-            index === self.findIndex(c => c.citation === case.citation)
+        const uniqueCases = allCases.filter((caseItem, index, self) => 
+            index === self.findIndex(c => c.citation === caseItem.citation)
         );
         
         return uniqueCases
@@ -506,8 +506,14 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+// Export for Vercel serverless
+module.exports = app;
+
+// Start server only when not in Vercel
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
     console.log(`⚖️ LawHelper AI Platform v2.0 running on port ${PORT}`);
     console.log(`🔍 Legal research engine ready`);
     console.log(`📄 Document generator loaded with ${Object.values(legalTemplates).reduce((sum, cat) => sum + Object.keys(cat).length, 0)} templates`);
-});
+  });
+}
