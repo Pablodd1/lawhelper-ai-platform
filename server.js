@@ -1015,9 +1015,19 @@ async function initRAGSystem() {
 
 // --- RAG API Endpoints ---
 
+// Initialize RAG on first use (lazy, works in Vercel serverless)
+let ragInitialized = false;
+async function ensureRAG() {
+    if (!ragInitialized) {
+        ragInitialized = true;
+        await initRAGSystem();
+    }
+}
+
 // Search RAG knowledge
 app.post('/api/rag/search', async (req, res) => {
     try {
+        await ensureRAG();
         const { query, topK = 5, category } = req.body;
         if (!query) return res.status(400).json({ error: 'Query required' });
         
@@ -1042,7 +1052,8 @@ app.post('/api/rag/ingest', async (req, res) => {
 });
 
 // RAG stats
-app.get('/api/rag/stats', (req, res) => {
+app.get('/api/rag/stats', async (req, res) => {
+    await ensureRAG();
     const cats = {};
     memVectorStore.forEach(d => { cats[d.category] = (cats[d.category] || 0) + 1; });
     res.json({ success: true, total: memVectorStore.length, categories: cats, storage: supabaseClient ? 'supabase+memory' : 'memory' });
