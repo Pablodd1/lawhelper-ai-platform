@@ -179,11 +179,33 @@ registerRoutes(app);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
+  const frontendBuildPath = path.join(__dirname, '../frontend/build');
+  const fs = require('fs');
   
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
-  });
+  if (fs.existsSync(frontendBuildPath)) {
+    app.use(express.static(frontendBuildPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(frontendBuildPath, 'index.html'));
+    });
+  } else {
+    // No frontend build — serve API landing page as root
+    app.get('/', (req, res) => {
+      res.json({
+        success: true,
+        message: 'LawHelper Attorney AI Platform — API Online',
+        version: '1.0.0',
+        endpoints: {
+          health: '/api/health',
+          auth: '/api/auth/login',
+          register: '/api/auth/register',
+          cases: '/api/cases',
+          documents: '/api/documents',
+          db_status: '/api/db/status'
+        },
+        environment: process.env.NODE_ENV
+      });
+    });
+  }
 }
 
 // Error handling middleware - CRITICAL FIX for HTML errors
