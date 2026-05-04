@@ -662,6 +662,26 @@ ${JSON.stringify(immigrationKnowledge.deadlines, null, 2)}` },
     const a1 = await smartChat(a1Prompt, 'agent1-primary');
     pipelineLog.push({ agent: 'A1_Primary', timestamp: new Date().toISOString(), success: a1.success, provider: a1.provider });
     
+    // If AI failed, generate rule-based analysis from RAG knowledge
+    if (!a1.success || !a1.content) {
+        const statute = Object.values(immigrationKnowledge.statutes).find(s => 
+            caseData.case_type.toLowerCase().includes('asylum') ? s.cite.includes('208') : 
+            caseData.case_type.toLowerCase().includes('removal') ? s.cite.includes('240') : null
+        ) || immigrationKnowledge.statutes.asylum;
+        
+        a1.content = `IMMIGRATION CASE ANALYSIS (Rule-Based Fallback)\n\n` +
+            `Client: ${caseData.client_name}\nCountry: ${caseData.country}\nCase Type: ${caseData.case_type}\n\n` +
+            `PRIMARY RELIEF: ${statute.cite}\n${statute.summary}\n\n` +
+            `ELIGIBILITY FACTORS:\n- Physical presence in US: Required\n- Filing deadline: ${caseData.case_type === 'asylum' ? 'Within 1 year of arrival' : 'Case-specific'}\n` +
+            `- Burden of proof: Preponderance of evidence\n\n` +
+            `RECOMMENDED STRATEGY:\n1. Gather supporting documentation\n2. Prepare client declaration\n3. File primary application\n4. Prepare for interview/hearing\n\n` +
+            `DOCUMENT CHECKLIST:\n- Form I-589 (if asylum)\n- Personal declaration\n- Country conditions evidence\n- Identity documents\n- Corroborating witness statements\n\n` +
+            `RISK FACTORS:\n- One-year filing deadline (asylum)\n- Credibility determination\n- Corroboration requirements\n\n` +
+            `CONFIDENCE: 40% (Rule-based, no AI available)\n` +
+            `⚠️ This is an automated template analysis. Attorney review required.`;
+        a1.provider = 'rule-based';
+    }
+    
     // Extract confidence from A1
     const confMatch = (a1.content || '').match(/confidence[:\s]*(\d+)/i);
     const a1Confidence = confMatch ? parseInt(confMatch[1]) : 50;
@@ -681,6 +701,21 @@ Be thorough and critical. Immigration errors can lead to deportation.` },
     ];
     const a2 = await smartChat(a2Prompt, 'agent2-reviewer');
     pipelineLog.push({ agent: 'A2_Reviewer', timestamp: new Date().toISOString(), success: a2.success, provider: a2.provider });
+    
+    // Fallback review if AI failed
+    if (!a2.success || !a2.content) {
+        a2.content = `CRITICAL REVIEW (Rule-Based Fallback)\n\n` +
+            `Validation Status: NEEDS_REVISION\n\n` +
+            `REVIEW FINDINGS:\n` +
+            `1. LEGAL ACCURACY: Basic framework appears correct. Verify all citations against current law.\n` +
+            `2. MISSING RELIEF: Consider alternative relief options (Withholding, CAT protection).\n` +
+            `3. DEADLINES: Confirm all filing deadlines are calendared with 14-day advance reminders.\n` +
+            `4. EVIDENTIARY GAPS: Corroborating evidence is critical. Identify and address gaps.\n` +
+            `5. CREDIBILITY: Prepare client for detailed, consistent testimony.\n\n` +
+            `RECOMMENDATION: Proceed with caution. Address identified gaps before filing.\n\n` +
+            `⚠️ Automated review. Attorney verification required.`;
+        a2.provider = 'rule-based';
+    }
     
     // Determine if Agent 3 is needed
     const a2Rejected = (a2.content || '').toLowerCase().includes('rejected');
