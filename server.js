@@ -493,8 +493,322 @@ app.get('/api/health', (req, res) => {
         service: 'LawHelper AI Platform',
         version: '2.0.0',
         timestamp: new Date().toISOString(),
-        features: ['legal_research', 'document_generation', 'contract_analysis']
+        features: ['legal_research', 'document_generation', 'contract_analysis', 'immigration_law', 'asylum_briefs', 'rag_knowledge']
     });
+});
+
+// ═══════════════════════════════════════════════
+// IMMIGRATION LAW MODULE — Attorney RAG System
+// ═══════════════════════════════════════════════
+
+// --- Ollama Local LLM Client (tried first, cloud fallback) ---
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.1:8b';
+
+async function ollamaChat(messages, options = {}) {
+    try {
+        const response = await axios.post(`${OLLAMA_HOST}/api/chat`, {
+            model: OLLAMA_MODEL,
+            messages: messages,
+            stream: false,
+            options: { temperature: 0.3, ...options }
+        }, { timeout: 60000 });
+        return { success: true, content: response.data.message.content, provider: 'ollama', model: OLLAMA_MODEL };
+    } catch (e) {
+        return { success: false, error: e.message, provider: 'ollama' };
+    }
+}
+
+async function cloudChat(messages, provider = 'deepseek') {
+    const apiKeys = {
+        deepseek: { key: process.env.DEEPSEEK_API_KEY, url: 'https://api.deepseek.com/v1/chat/completions', model: 'deepseek-chat' },
+        openai: { key: process.env.OPENAI_API_KEY, url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' }
+    };
+    const cfg = apiKeys[provider];
+    if (!cfg || !cfg.key) return { success: false, error: 'No API key', provider };
+    try {
+        const response = await axios.post(cfg.url, {
+            model: cfg.model,
+            messages: messages,
+            temperature: 0.3
+        }, { headers: { 'Authorization': `Bearer ${cfg.key}`, 'Content-Type': 'application/json' }, timeout: 30000 });
+        return { success: true, content: response.data.choices[0].message.content, provider, model: cfg.model };
+    } catch (e) {
+        return { success: false, error: e.message, provider };
+    }
+}
+
+// Smart LLM call: local first, cloud fallback
+async function smartChat(messages, task = 'general') {
+    console.log(`🤖 [${task}] Trying local Ollama (${OLLAMA_MODEL})...`);
+    const local = await ollamaChat(messages);
+    if (local.success) {
+        console.log(`✅ [${task}] Local Ollama succeeded`);
+        return local;
+    }
+    console.log(`⚠️ [${task}] Local failed: ${local.error}. Falling back to DeepSeek...`);
+    const cloud = await cloudChat(messages, 'deepseek');
+    if (cloud.success) {
+        console.log(`✅ [${task}] DeepSeek cloud succeeded`);
+        return cloud;
+    }
+    console.log(`⚠️ [${task}] DeepSeek failed: ${cloud.error}. Trying OpenAI...`);
+    return await cloudChat(messages, 'openai');
+}
+
+// --- Immigration RAG Knowledge Base ---
+const immigrationKnowledge = {
+    statutes: {
+        asylum: { cite: 'INA § 208', summary: 'Any alien physically present in the US may apply for asylum within 1 year of arrival. Must demonstrate persecution or well-founded fear based on race, religion, nationality, political opinion, or membership in a particular social group.' },
+        withholding: { cite: 'INA § 241(b)(3)', summary: 'Withholding of removal if life or freedom would be threatened. Higher standard than asylum — "more likely than not." No 1-year deadline. Bars: particularly serious crime, serious non-political crime, security risk.' },
+        cat: { cite: 'CAT Article 3', summary: 'Convention Against Torture protection. Must show "more likely than not" to be tortured by or with acquiescence of government. No bars apply. No derivative beneficiaries.' },
+        cancellation: { cite: 'INA § 240A', summary: 'Cancellation of removal for LPRs (7 years continuous residence, no aggravated felony) and non-LPRs (10 years continuous physical presence, good moral character, exceptional hardship to USC/LPR relative).' },
+        adjustment: { cite: 'INA § 245', summary: 'Adjustment of status to LPR. Must be admissible, have immediately available visa. Bars: unauthorized employment, status violations (with exceptions for immediate relatives).' },
+        naturalization: { cite: 'INA § 316', summary: 'Naturalization after 5 years LPR (3 years if married to USC). Requirements: continuous residence, physical presence, good moral character, English/civics knowledge.' }
+    },
+    keyCases: [
+        { name: 'Matter of M-E-V-G-', cite: '26 I&N Dec. 227 (BIA 2014)', holding: 'Particular social group must be socially distinct within the society in question.' },
+        { name: 'Matter of A-B-', cite: '27 I&N Dec. 316 (A.G. 2018)', holding: 'Generally, victims of private criminal activity do not qualify as a particular social group.' },
+        { name: 'Matter of L-E-A-', cite: '27 I&N Dec. 581 (A.G. 2019)', holding: 'Family-based particular social group requires showing the family is socially distinct.' }
+    ],
+    deadlines: [
+        { event: 'File I-589 (Asylum)', deadline: 'Within 1 year of last arrival', exceptions: 'Changed circumstances, extraordinary circumstances' },
+        { event: 'BIA Appeal', deadline: '30 days from IJ decision', exceptions: 'None — jurisdictional' },
+        { event: 'Circuit Court Petition for Review', deadline: '30 days from BIA decision', exceptions: 'None — jurisdictional' },
+        { event: 'Motion to Reopen', deadline: '90 days from final order (generally)', exceptions: 'Changed country conditions, ineffective assistance, sua sponte' },
+        { event: 'FOIA Response', deadline: '20 business days (statutory)', exceptions: 'Expedited processing for removal proceedings' }
+    ],
+    credibility: {
+        demeanorFactors: ['Responsiveness', 'Consistency', 'Detail level', 'Plausibility', 'Corroboration'],
+        traumaConsiderations: 'PTSD, depression, memory fragmentation, and dissociation are common in genuine asylum seekers and should NOT be interpreted as deception.',
+        culturalNotes: 'Eye contact norms, emotional expression, narrative structure, and time perception vary significantly across cultures.'
+    }
+};
+
+// --- Immigration Document Templates ---
+const immigrationTemplates = {
+    asylum: {
+        brief_asylum_support: {
+            type: 'Brief in Support of Asylum (I-589)',
+            sections: ['caption', 'statement_of_facts', 'legal_framework', 'particular_social_group', 'past_persecution', 'future_fear', 'government_protection', 'internal_relocation', 'humanitarian_asylum', 'conclusion'],
+            required_fields: ['client_name', 'a_number', 'country', 'protected_ground', 'persecution_basis']
+        },
+        declaration_client: {
+            type: 'Client Declaration (Asylum)',
+            sections: ['personal_background', 'persecution_account', 'threats_harm', 'fear_of_return', 'family_context'],
+            required_fields: ['client_name', 'country', 'persecution_details']
+        }
+    },
+    removal_defense: {
+        motion_to_reopen: {
+            type: 'Motion to Reopen (I-589)',
+            sections: ['caption', 'procedural_history', 'changed_circumstances', 'legal_argument', 'supporting_evidence', 'conclusion'],
+            required_fields: ['client_name', 'a_number', 'country', 'new_evidence', 'reopen_grounds']
+        },
+        motion_terminate: {
+            type: 'Motion to Terminate Proceedings',
+            sections: ['caption', 'jurisdictional_basis', 'legal_argument', 'relief_already_granted', 'conclusion'],
+            required_fields: ['client_name', 'a_number', 'terminate_reason']
+        }
+    },
+    appeals: {
+        notice_appeal_bia: {
+            type: 'Notice of Appeal (BIA/EOIR-26)',
+            sections: ['caption', 'ij_decision_details', 'grounds_for_appeal', 'relief_sought', 'certificate_of_service'],
+            required_fields: ['client_name', 'a_number', 'ij_name', 'decision_date', 'appeal_grounds']
+        },
+        brief_bia: {
+            type: 'Brief in Support of Appeal (BIA)',
+            sections: ['caption', 'statement_of_case', 'statement_of_facts', 'summary_of_argument', 'argument', 'conclusion'],
+            required_fields: ['client_name', 'a_number', 'ij_errors', 'supporting_authorities']
+        }
+    },
+    other: {
+        foia_request: {
+            type: 'FOIA Request (DHS/USCIS/ICE)',
+            sections: ['requester_info', 'records_requested', 'fee_waiver', 'expedited_processing', 'certification'],
+            required_fields: ['client_name', 'a_number', 'agency', 'records_description']
+        },
+        bond_redetermination: {
+            type: 'Motion for Bond Redetermination',
+            sections: ['caption', 'eligibility', 'favorable_factors', 'bond_amount_requested', 'supporting_evidence'],
+            required_fields: ['client_name', 'a_number', 'current_bond', 'requested_bond']
+        }
+    }
+};
+
+// --- 3-Agent Conditional Pipeline for Immigration Cases ---
+async function runImmigrationPipeline(caseData) {
+    const pipelineLog = [];
+    const startTime = Date.now();
+    
+    // Agent 1: Primary Analyst
+    console.log('🔍 Agent 1: Primary Immigration Analyst running...');
+    const a1Prompt = [
+        { role: 'system', content: `You are an experienced immigration attorney AI (Agent 1 - Primary Analyst). Analyze the immigration case and provide:
+1. Relief eligibility assessment with citations
+2. Recommended case strategy (ranked options)
+3. Document checklist with deadlines
+4. Risk factors and red flags
+5. Confidence score (0-100%)
+
+Immigration Law Knowledge:
+${JSON.stringify(immigrationKnowledge.statutes, null, 2)}
+
+Key Deadlines:
+${JSON.stringify(immigrationKnowledge.deadlines, null, 2)}` },
+        { role: 'user', content: `Analyze this immigration case:\nClient: ${caseData.client_name}\nCountry: ${caseData.country}\nCase Type: ${caseData.case_type}\nFacts: ${caseData.facts}\n\nProvide a complete analysis with confidence score.` }
+    ];
+    const a1 = await smartChat(a1Prompt, 'agent1-primary');
+    pipelineLog.push({ agent: 'A1_Primary', timestamp: new Date().toISOString(), success: a1.success, provider: a1.provider });
+    
+    // Extract confidence from A1
+    const confMatch = (a1.content || '').match(/confidence[:\s]*(\d+)/i);
+    const a1Confidence = confMatch ? parseInt(confMatch[1]) : 50;
+    
+    // Agent 2: Critical Reviewer
+    console.log('🔎 Agent 2: Critical Reviewer running...');
+    const a2Prompt = [
+        { role: 'system', content: `You are a senior immigration quality auditor (Agent 2 - Critical Reviewer). Review Agent 1's analysis for:
+1. Legal accuracy - are the statutes correctly applied?
+2. Missing relief options - what did A1 miss?
+3. Deadline errors - any miscalculated deadlines?
+4. Evidentiary gaps - what evidence is insufficient?
+5. Validation status: APPROVED, NEEDS_REVISION, or REJECTED
+
+Be thorough and critical. Immigration errors can lead to deportation.` },
+        { role: 'user', content: `Review this immigration case analysis:\n\nCase: ${caseData.client_name} - ${caseData.case_type} - ${caseData.country}\n\nAgent 1 Analysis:\n${a1.content}\n\nProvide your critical review and validation status.` }
+    ];
+    const a2 = await smartChat(a2Prompt, 'agent2-reviewer');
+    pipelineLog.push({ agent: 'A2_Reviewer', timestamp: new Date().toISOString(), success: a2.success, provider: a2.provider });
+    
+    // Determine if Agent 3 is needed
+    const a2Rejected = (a2.content || '').toLowerCase().includes('rejected');
+    const a2Revision = (a2.content || '').toLowerCase().includes('needs_revision');
+    const needsAgent3 = a2Rejected || a2Revision || a1Confidence < 80 || caseData.complex === true;
+    
+    let a3 = null;
+    if (needsAgent3) {
+        console.log('🧠 Agent 3: Senior Immigration Counsel invoked (conditional)...');
+        const a3Prompt = [
+            { role: 'system', content: `You are a Senior Immigration Counsel with 25+ years experience (Agent 3 - Conditional Specialist). Agent 1 and Agent 2 disagree or confidence is low. Your role:
+1. Resolve disagreements between A1 and A2
+2. Identify what both agents missed
+3. Provide final authoritative analysis
+4. Assign final confidence and risk level (LOW/MEDIUM/HIGH/CRITICAL)
+5. Final recommendation with specific next steps` },
+            { role: 'user', content: `Resolve this immigration case:\n\nCase: ${caseData.client_name} - ${caseData.case_type} - ${caseData.country}\n\nAgent 1 (Confidence: ${a1Confidence}%):\n${a1.content}\n\nAgent 2 Review:\n${a2.content}\n\nProvide final analysis and resolution.` }
+        ];
+        a3 = await smartChat(a3Prompt, 'agent3-specialist');
+        pipelineLog.push({ agent: 'A3_Specialist', timestamp: new Date().toISOString(), success: a3?.success, provider: a3?.provider });
+    }
+    
+    const elapsed = Date.now() - startTime;
+    
+    return {
+        success: true,
+        case_id: `IMM-${Date.now()}`,
+        pipeline_version: '3.0-conditional',
+        agents_used: needsAgent3 ? 3 : 2,
+        elapsed_ms: elapsed,
+        a1_analysis: a1.content,
+        a1_confidence: a1Confidence,
+        a1_provider: a1.provider,
+        a2_review: a2.content,
+        a2_status: a2Rejected ? 'REJECTED' : a2Revision ? 'NEEDS_REVISION' : 'APPROVED',
+        a2_provider: a2.provider,
+        a3_resolution: a3?.content || null,
+        a3_provider: a3?.provider || null,
+        local_models_used: [a1, a2, a3].filter(a => a?.provider === 'ollama').length,
+        pipeline_log: pipelineLog,
+        disclaimer: '⚠️ AI-GENERATED ANALYSIS — REQUIRES ATTORNEY REVIEW BEFORE USE. Not legal advice.',
+        human_signature_required: true
+    };
+}
+
+// --- Immigration API Endpoints ---
+
+// Immigration RAG Knowledge Endpoint
+app.get('/api/immigration/knowledge', (req, res) => {
+    const { category } = req.query;
+    if (category && immigrationKnowledge[category]) {
+        return res.json({ success: true, category, data: immigrationKnowledge[category] });
+    }
+    res.json({ success: true, knowledge: immigrationKnowledge });
+});
+
+// Immigration Templates
+app.get('/api/immigration/templates', (req, res) => {
+    const allTemplates = {};
+    let count = 0;
+    for (const [cat, templates] of Object.entries(immigrationTemplates)) {
+        allTemplates[cat] = {};
+        for (const [key, tmpl] of Object.entries(templates)) {
+            allTemplates[cat][key] = { type: tmpl.type, required_fields: tmpl.required_fields, sections: tmpl.sections };
+            count++;
+        }
+    }
+    res.json({ success: true, categories: Object.keys(immigrationTemplates), total: count, templates: allTemplates });
+});
+
+// Generate Immigration Document
+app.post('/api/immigration/generate-document', (req, res) => {
+    try {
+        const { category, template, data } = req.body;
+        if (!category || !template || !data) {
+            return res.status(400).json({ error: 'category, template, and data required' });
+        }
+        const tmpl = immigrationTemplates[category]?.[template];
+        if (!tmpl) return res.status(404).json({ error: 'Template not found' });
+        
+        const missing = tmpl.required_fields.filter(f => !data[f]);
+        if (missing.length) return res.status(400).json({ error: `Missing fields: ${missing.join(', ')}` });
+        
+        const doc = `IMMIGRATION LEGAL DOCUMENT
+Type: ${tmpl.type}
+Generated: ${new Date().toISOString()}
+Client: ${data.client_name || '[CLIENT]'}
+A-Number: ${data.a_number || '[A#]'}
+
+${tmpl.sections.map(s => `\n=== ${s.toUpperCase().replace(/_/g, ' ')} ===\n[${s} content — AI-generated draft]\n`).join('\n')}
+
+DISCLAIMER: AI-generated draft. Attorney review required. Not legal advice.`;
+        
+        res.json({ success: true, document: doc, metadata: { type: tmpl.type, category, sections: tmpl.sections.length, generated_at: new Date().toISOString() } });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3-Agent Immigration Pipeline
+app.post('/api/immigration/analyze', async (req, res) => {
+    try {
+        const { client_name, country, case_type, facts, complex } = req.body;
+        if (!client_name || !country || !case_type || !facts) {
+            return res.status(400).json({ error: 'client_name, country, case_type, and facts are required' });
+        }
+        const result = await runImmigrationPipeline({ client_name, country, case_type, facts, complex });
+        res.json(result);
+    } catch (e) {
+        console.error('Pipeline error:', e);
+        res.status(500).json({ error: 'Analysis failed: ' + e.message });
+    }
+});
+
+// Case Management (in-memory for demo, replaces DB when unavailable)
+const caseStore = [];
+app.post('/api/immigration/cases', (req, res) => {
+    const c = { id: `CASE-${Date.now()}`, ...req.body, created_at: new Date().toISOString(), status: 'open' };
+    caseStore.push(c);
+    res.json({ success: true, case: c });
+});
+app.get('/api/immigration/cases', (req, res) => {
+    res.json({ success: true, count: caseStore.length, cases: caseStore });
+});
+app.get('/api/immigration/cases/:id', (req, res) => {
+    const c = caseStore.find(c => c.id === req.params.id);
+    if (!c) return res.status(404).json({ error: 'Case not found' });
+    res.json({ success: true, case: c });
 });
 
 // Serve static files
