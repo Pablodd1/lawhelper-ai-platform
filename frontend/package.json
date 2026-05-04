@@ -1,0 +1,8 @@
+{
+  "name": "lawhelper-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Frontend build skipped - using static assets' && exit 0"
+  }
+}
