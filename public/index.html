@@ -1,459 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LawHelper AI - Legal Document Automation & Research</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Georgia', serif;
-            line-height: 1.6;
-            color: #2c3e50;
-            background: #f8f9fa;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        header {
-            background: #1a1a2e;
-            color: white;
-            padding: 1rem 0;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-        
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .logo {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #f39c12;
-        }
-        
-        .nav-links {
-            display: flex;
-            list-style: none;
-            gap: 2rem;
-        }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        
-        .nav-links a:hover {
-            color: #f39c12;
-        }
-        
-        .hero {
-            margin-top: 80px;
-            padding: 4rem 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-align: center;
-        }
-        
-        .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        
-        .hero p {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            padding: 1rem 2rem;
-            background: #f39c12;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-        
-        .cta-button:hover {
-            background: #e67e22;
-        }
-        
-        .features {
-            padding: 4rem 0;
-            background: white;
-        }
-        
-        .section-title {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 3rem;
-            color: #2c3e50;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-        
-        .feature-card {
-            background: #f8f9fa;
-            padding: 2rem;
-            border-radius: 10px;
-            border-left: 4px solid #f39c12;
-            transition: transform 0.3s;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-        
-        .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .feature-card h3 {
-            font-size: 1.4rem;
-            margin-bottom: 1rem;
-            color: #2c3e50;
-        }
-        
-        .document-workspace {
-            padding: 4rem 0;
-            background: #ecf0f1;
-        }
-        
-        .workspace-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-        }
-        
-        .workspace-card {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .cta-section {
-            padding: 4rem 0;
-            background: #2c3e50;
-            color: white;
-            text-align: center;
-        }
-        
-        .pricing-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        
-        .pricing-card {
-            background: white;
-            color: #2c3e50;
-            padding: 2rem;
-            border-radius: 10px;
-            text-align: center;
-            position: relative;
-        }
-        
-        .pricing-card.featured {
-            border: 3px solid #f39c12;
-            transform: scale(1.05);
-        }
-        
-        .price {
-            font-size: 3rem;
-            color: #f39c12;
-            font-weight: bold;
-        }
-        
-        footer {
-            background: #1a1a2e;
-            color: white;
-            padding: 2rem 0;
-            text-align: center;
-        }
-        
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .footer-section h4 {
-            color: #f39c12;
-            margin-bottom: 1rem;
-        }
-        
-        .footer-section ul {
-            list-style: none;
-        }
-        
-        .footer-section a {
-            color: #bdc3c7;
-            text-decoration: none;
-        }
-        
-        .footer-section a:hover {
-            color: #f39c12;
-        }
-        
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2rem;
-            }
-            
-            .nav-links {
-                display: none;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LawHelper AI — Immigration Attorney Platform</title>
+<style>
+:root {
+  --bg: #0a0a0f; --panel: #12121a; --border: #1e1e2e;
+  --gold: #c9a84c; --text: #e0e0e0; --sub: #888;
+  --green: #4ade80; --blue: #60a5fa;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 20px 32px; text-align: center; }
+header h1 { color: var(--gold); font-size: 28px; margin-bottom: 4px; }
+header p { color: var(--sub); font-size: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 32px; max-width: 1200px; margin: 0 auto; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 24px; transition: all .2s; }
+.card:hover { border-color: var(--gold); transform: translateY(-2px); }
+.card h3 { color: var(--gold); font-size: 16px; margin-bottom: 12px; }
+.card p { color: var(--sub); font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+.card .features { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.card .tag { padding: 4px 10px; background: rgba(201,168,76,0.1); border-radius: 4px; font-size: 11px; color: var(--gold); }
+.card a { display: inline-block; padding: 10px 20px; background: var(--gold); color: #000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 13px; transition: all .2s; }
+.card a:hover { background: #d4b35a; }
+.status-bar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 8px 32px; display: flex; justify-content: center; gap: 24px; font-size: 12px; }
+.status-bar .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.status-bar .dot.green { background: var(--green); }
+.status-bar .dot.yellow { background: var(--gold); }
+.api-section { max-width: 1200px; margin: 32px auto; padding: 0 32px; }
+.api-section h2 { color: var(--gold); margin-bottom: 16px; }
+.api-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.api-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+.api-card .method { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-right: 8px; }
+.api-card .method.get { background: rgba(96,165,250,0.15); color: var(--blue); }
+.api-card .method.post { background: rgba(74,222,128,0.15); color: var(--green); }
+.api-card .path { font-family: monospace; font-size: 13px; color: var(--text); }
+.api-card .desc { font-size: 11px; color: var(--sub); margin-top: 4px; }
+footer { text-align: center; padding: 32px; color: var(--sub); font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
 </head>
 <body>
-    <header>
-        <nav class="container">
-            <div class="logo">⚖️ LawHelper AI</div>
-            <ul class="nav-links">
-                <li><a href="#features">Features</a></li>
-                <li><a href="#workspace">Workspace</a></li>
-                <li><a href="#pricing">Pricing</a></li>
-                <li><a href="#contact">Contact</a></li>
-            </ul>
-        </nav>
-    </header>
+<header>
+  <h1>⚖️ LawHelper AI</h1>
+  <p>Immigration Attorney Platform — AI-Powered Legal Research, Document Generation & Credibility Assessment</p>
+</header>
 
-    <section class="hero">
-        <div class="container">
-            <h1>LawHelper AI: Legal Document Automation</h1>
-            <p>AI-powered legal research, document drafting, and case analysis for modern law practices</p>
-            <a href="#features" class="cta-button">Explore Features</a>
-        </div>
-    </section>
+<div class="status-bar">
+  <span><span class="dot green"></span> Legal Research</span>
+  <span><span class="dot green"></span> Document Generation</span>
+  <span><span class="dot green"></span> RAG Vector Search</span>
+  <span><span class="dot green"></span> 3-Agent Pipeline</span>
+  <span><span class="dot green"></span> Contract Analysis</span>
+  <span><span class="dot green"></span> Video Credibility</span>
+</div>
 
-    <section class="features" id="features">
-        <div class="container">
-            <h2 class="section-title">🧠 AI-Powered Legal Tools</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">📄</div>
-                    <h3>Document Automation</h3>
-                    <p>Generate contracts, pleadings, and legal documents in minutes with AI-powered templates that adapt to your specific case requirements.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <h3>Legal Research AI</h3>
-                    <p>Instant case law research with natural language queries. Find relevant precedents, statutes, and regulations faster than traditional methods.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Case Analysis</h3>
-                    <p>Analyze case strengths, predict outcomes, and identify key legal issues with machine learning algorithms trained on millions of cases.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>Contract Review</h3>
-                    <p>AI reviews contracts for risks, inconsistencies, and missing clauses. Get instant redlines and suggested improvements.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <h3>Discovery Assistant</h3>
-                    <p>Automated document review for discovery processes. Identify relevant documents and extract key information efficiently.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💼</div>
-                    <h3>Client Intake</h3>
-                    <p>Smart forms that adapt based on case type, automatically gathering relevant information and creating case files.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="grid">
+  <div class="card">
+    <h3>🔍 Legal Research</h3>
+    <p>Search case law across Fastcase, CAP, and CourtListener. AI classification of legal areas with jurisdiction filtering.</p>
+    <div class="features">
+      <span class="tag">Case Law</span><span class="tag">Statutes</span><span class="tag">Multi-DB</span><span class="tag">AI Classifier</span>
+    </div>
+  </div>
 
-    <section class="document-workspace" id="workspace">
-        <div class="container">
-            <h2 class="section-title">🛠️ Intelligent Legal Workspace</h2>
-            <div class="workspace-grid">
-                <div class="workspace-card">
-                    <h3>📋 Draft Assistant</h3>
-                    <p>Smart document drafting with context-aware suggestions, automatic citation formatting, and style consistency checks.</p>
-                </div>
-                <div class="workspace-card">
-                    <h3>⚡ Quick Templates</h3>
-                    <p>Pre-built templates for common legal documents: NDAs, employment contracts, wills, powers of attorney, and more.</p>
-                </div>
-                <div class="workspace-card">
-                    <h3>🔎 Citation Finder</h3>
-                    <p>Automatically find and insert relevant case citations, statutes, and legal authorities to support your arguments.</p>
-                </div>
-                <div class="workspace-card">
-                    <h3>👥 Collaboration Tools</h3>
-                    <p>Real-time collaboration with colleagues, version control, and secure client sharing with granular permissions.</p>
-                </div>
-                <div class="workspace-card">
-                    <h3>📊 Analytics Dashboard</h3>
-                    <p>Track document creation time, case success rates, and practice efficiency metrics to optimize your workflow.</p>
-                </div>
-                <div class="workspace-card">
-                    <h3>🔐 Security First</h3>
-                    <p>Bank-grade encryption, audit trails, and compliance with attorney-client privilege protection standards.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+  <div class="card">
+    <h3>📄 Document Generation</h3>
+    <p>Generate immigration legal documents from templates. Asylum briefs, motions, FOIA requests, BIA appeals, bonds.</p>
+    <div class="features">
+      <span class="tag">I-589 Asylum</span><span class="tag">Motions</span><span class="tag">FOIA</span><span class="tag">BIA Appeals</span><span class="tag">17 Templates</span>
+    </div>
+  </div>
 
-    <section class="cta-section">
-        <div class="container">
-            <h2>Ready to Transform Your Legal Practice?</h2>
-            <p>Join thousands of lawyers who have revolutionized their document workflow</p>
-            <a href="#pricing" class="cta-button">Get Started Today</a>
-        </div>
-    </section>
+  <div class="card">
+    <h3>🧠 RAG Knowledge Base</h3>
+    <p>Vector search across immigration statutes, BIA case law, filing deadlines, and credibility frameworks. 15+ documents embedded.</p>
+    <div class="features">
+      <span class="tag">Semantic Search</span><span class="tag">pgvector</span><span class="tag">INA Statutes</span><span class="tag">BIA Precedent</span>
+    </div>
+  </div>
 
-    <section class="pricing" id="pricing">
-        <div class="container">
-            <h2 class="section-title">Simple, Transparent Pricing</h2>
-            <div class="pricing-grid">
-                <div class="pricing-card">
-                    <h3>Starter</h3>
-                    <div class="price">$99<span style="font-size: 1rem;">/mo</span></div>
-                    <ul style="list-style: none; padding: 0;">
-                        <li>✅ Up to 50 documents/month</li>
-                        <li>✅ Basic templates</li>
-                        <li>✅ Legal research (limited)</li>
-                        <li>✅ Email support</li>
-                    </ul>
-                    <a href="#" class="cta-button" style="display: block; margin-top: 1rem;">Start Free Trial</a>
-                </div>
-                <div class="pricing-card featured">
-                    <h3>Professional</h3>
-                    <div class="price">$299<span style="font-size: 1rem;">/mo</span></div>
-                    <ul style="list-style: none; padding: 0;">
-                        <li>✅ Unlimited documents</li>
-                        <li>✅ All templates + custom</li>
-                        <li>✅ Advanced legal research</li>
-                        <li>✅ Contract analysis</li>
-                        <li>✅ Priority support</li>
-                    </ul>
-                    <a href="#" class="cta-button" style="display: block; margin-top: 1rem;">Start Free Trial</a>
-                </div>
-                <div class="pricing-card">
-                    <h3>Enterprise</h3>
-                    <div class="price">Custom</div>
-                    <ul style="list-style: none; padding: 0;">
-                        <li>✅ Everything in Professional</li>
-                        <li>✅ White-label options</li>
-                        <li>✅ API access</li>
-                        <li>✅ Dedicated support</li>
-                        <li>✅ Custom integrations</li>
-                    </ul>
-                    <a href="#" class="cta-button" style="display: block; margin-top: 1rem;">Contact Sales</a>
-                </div>
-            </div>
-        </div>
-    </section>
+  <div class="card">
+    <h3>🤖 3-Agent Pipeline</h3>
+    <p>Primary Analyst → Critical Reviewer → Conditional Specialist. Local LLM first (Ollama), cloud fallback (DeepSeek/OpenAI).</p>
+    <div class="features">
+      <span class="tag">Multi-Agent</span><span class="tag">Local-First</span><span class="tag">Conditional A3</span><span class="tag">Confidence Score</span>
+    </div>
+  </div>
 
-    <footer id="contact">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>Product</h4>
-                    <ul>
-                        <li><a href="#">Document Automation</a></li>
-                        <li><a href="#">Legal Research</a></li>
-                        <li><a href="#">Contract Analysis</a></li>
-                        <li><a href="#">Case Management</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Resources</h4>
-                    <ul>
-                        <li><a href="#">Documentation</a></li>
-                        <li><a href="#">API Reference</a></li>
-                        <li><a href="#">Legal Blog</a></li>
-                        <li><a href="#">Webinars</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Support</h4>
-                    <ul>
-                        <li><a href="#">Help Center</a></li>
-                        <li><a href="#">Contact Support</a></li>
-                        <li><a href="#">Training</a></li>
-                        <li><a href="#">Status</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h4>Company</h4>
-                    <ul>
-                        <li><a href="#">About Us</a></li>
-                        <li><a href="#">Careers</a></li>
-                        <li><a href="#">Privacy</a></li>
-                        <li><a href="#">Terms</a></li>
-                    </ul>
-                </div>
-            </div>
-            <p>&copy; 2024 LawHelper AI. All rights reserved. | Making legal work more efficient through AI.</p>
-        </div>
-    </footer>
+  <div class="card">
+    <h3>📋 Contract Analysis</h3>
+    <p>Upload contracts for automated risk analysis. Detects dangerous clauses, missing protections, and jurisdiction issues.</p>
+    <div class="features">
+      <span class="tag">Risk Scoring</span><span class="tag">Missing Clauses</span><span class="tag">Suggestions</span>
+    </div>
+  </div>
 
-    <script>
-        // Smooth scrolling
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
-        });
+  <div class="card">
+    <h3>🎥 Credibility Assessment</h3>
+    <p>Real-time facial expression + posture analysis. 5-phase framework. 100% client-side — nothing leaves the browser.</p>
+    <div class="features">
+      <span class="tag">face-api.js</span><span class="tag">MediaPipe</span><span class="tag">7 Emotions</span><span class="tag">Privacy-First</span>
+    </div>
+    <a href="/credibility.html">🎥 Launch Video Analysis →</a>
+  </div>
+</div>
 
-        // Add scroll animations
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -100px 0px'
-        };
+<div class="api-section">
+  <h2>📡 API Endpoints</h2>
+  <div class="api-grid">
+    <div class="api-card"><span class="method get">GET</span><span class="path">/api/health</span><div class="desc">Service health + features</div></div>
+    <div class="api-card"><span class="method get">GET</span><span class="path">/api/templates</span><div class="desc">All 17 document templates</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/legal-research</span><div class="desc">Search case law databases</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/generate-document</span><div class="desc">Generate legal document</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/analyze-contract</span><div class="desc">Contract risk analysis</div></div>
+    <div class="api-card"><span class="method get">GET</span><span class="path">/api/immigration/knowledge</span><div class="desc">RAG statutes + cases</div></div>
+    <div class="api-card"><span class="method get">GET</span><span class="path">/api/immigration/templates</span><div class="desc">8 immigration templates</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/immigration/analyze</span><div class="desc">3-Agent case pipeline</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/immigration/generate-document</span><div class="desc">Generate immigration doc</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/rag/search</span><div class="desc">Vector semantic search</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/rag/ingest</span><div class="desc">Add document to RAG</div></div>
+    <div class="api-card"><span class="method get">GET</span><span class="path">/api/rag/stats</span><div class="desc">Knowledge base stats</div></div>
+    <div class="api-card"><span class="method post">POST</span><span class="path">/api/immigration/cases</span><div class="desc">Create case</div></div>
+    <div class="api-card"><span class="method get">GET</span><span class="path">/api/immigration/cases</span><div class="desc">List all cases</div></div>
+  </div>
+</div>
 
-        const observer = new IntersectionObserver(function(entries) {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        }, observerOptions);
-
-        // Observe cards for animation
-        document.querySelectorAll('.feature-card, .workspace-card, .pricing-card').forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(20px)';
-            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-            observer.observe(el);
-        });
-    </script>
+<footer>
+  LawHelper AI Platform v3.0 · Immigration Law Specialist · 
+  <span style="color:var(--gold)">Local LLM First</span> → Cloud Fallback · 
+  <span style="color:var(--green)">100% Client-Side Video</span>
+</footer>
 </body>
 </html>

@@ -892,11 +892,35 @@ if (SUPABASE_URL && SUPABASE_KEY) {
     }
 }
 
-// Generate embeddings via OpenAI (with simple fallback)
+// Generate embeddings — Ollama local first, OpenAI cloud, TF-IDF fallback
 async function generateEmbedding(text) {
     if (!text || text.length < 10) return null;
     
-    // Try OpenAI embeddings
+    // 1. Try Ollama local embedding (nomic-embed-text or llama)
+    if (OLLAMA_HOST && OLLAMA_HOST.includes('11434')) {
+        try {
+            const resp = await axios.post(`${OLLAMA_HOST}/api/embeddings`, {
+                model: 'nomic-embed-text',
+                prompt: text.slice(0, 4000)
+            }, { timeout: 15000 });
+            if (resp.data?.embedding?.length) {
+                return resp.data.embedding;
+            }
+        } catch (e) {
+            // Try with llama as fallback embedder
+            try {
+                const resp2 = await axios.post(`${OLLAMA_HOST}/api/embeddings`, {
+                    model: OLLAMA_MODEL,
+                    prompt: text.slice(0, 4000)
+                }, { timeout: 15000 });
+                if (resp2.data?.embedding?.length) {
+                    return resp2.data.embedding;
+                }
+            } catch (e2) { /* fall through */ }
+        }
+    }
+    
+    // 2. Try OpenAI cloud embeddings
     if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 20) {
         try {
             const resp = await axios.post('https://api.openai.com/v1/embeddings', {

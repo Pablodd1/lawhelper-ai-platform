@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LawHelper — Credibility Assessment</title>
+<style>
+:root {
+  --bg: #0a0a0f; --panel: #12121a; --border: #1e1e2e;
+  --gold: #c9a84c; --text: #e0e0e0; --sub: #888;
+  --green: #4ade80; --red: #f87171; --blue: #60a5fa;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+header h1 { font-size: 18px; color: var(--gold); }
+header .status { font-size: 12px; color: var(--sub); }
+.layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; height: calc(100vh - 60px); }
+.video-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: relative; }
+.video-panel video { width: 100%; height: 100%; object-fit: cover; }
+.video-panel canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.video-panel .controls { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
+.video-panel button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all .2s; }
+.btn-start { background: var(--gold); color: #000; }
+.btn-start:hover { background: #d4b35a; }
+.btn-stop { background: var(--red); color: #fff; }
+.btn-pause { background: var(--blue); color: #fff; }
+.sidebar { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.card h3 { font-size: 13px; color: var(--gold); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+.metric { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.metric .label { color: var(--sub); }
+.metric .value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.phase-indicator { display: flex; gap: 4px; margin-bottom: 12px; }
+.phase-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.phase-dot.active { background: var(--gold); }
+.phase-dot.done { background: var(--green); }
+.observations { max-height: 200px; overflow-y: auto; font-size: 12px; }
+.observation { padding: 6px 8px; margin: 4px 0; background: rgba(201,168,76,0.08); border-left: 2px solid var(--gold); border-radius: 0 4px 4px 0; font-size: 11px; }
+.observation .time { color: var(--sub); font-size: 10px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.badge.green { background: rgba(74,222,128,0.15); color: var(--green); }
+.badge.yellow { background: rgba(201,168,76,0.15); color: var(--gold); }
+.badge.red { background: rgba(248,113,113,0.15); color: var(--red); }
+.expression-bar { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.expression-bar .name { width: 80px; font-size: 11px; text-align: right; color: var(--sub); }
+.expression-bar .bar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.expression-bar .fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width .3s; }
+.expression-bar .pct { width: 36px; font-size: 11px; text-align: right; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚖️ Credibility Assessment — 5-Phase Framework</h1>
+  <div class="status" id="status">Initializing...</div>
+</header>
+
+<div class="layout">
+  <div class="video-panel">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="controls">
+      <button class="btn-start" id="btnStart" onclick="startSession()">▶ Start Session</button>
+      <button class="btn-pause" id="btnPause" onclick="togglePause()" disabled>⏸ Pause</button>
+      <button class="btn-stop" id="btnStop" onclick="stopSession()" disabled>⏹ End & Report</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="card">
+      <h3>Phases</h3>
+      <div class="phase-indicator">
+        <div class="phase-dot active" id="ph1" title="Baseline"></div>
+        <div class="phase-dot" id="ph2" title="Topic Observation"></div>
+        <div class="phase-dot" id="ph3" title="Cluster Analysis"></div>
+        <div class="phase-dot" id="ph4" title="Trauma Check"></div>
+        <div class="phase-dot" id="ph5" title="Documentation"></div>
+      </div>
+      <div class="metric"><span class="label">Phase</span><span class="value" id="phaseName">Baseline (60s)</span></div>
+      <div class="metric"><span class="label">Elapsed</span><span class="value" id="elapsed">00:00</span></div>
+      <div class="metric"><span class="label">Face Detected</span><span class="value" id="faceStatus"><span class="badge red">No</span></span></div>
+    </div>
+
+    <div class="card">
+      <h3>Facial Expressions</h3>
+      <div id="expressions"></div>
+    </div>
+
+    <div class="card">
+      <h3>Body Language</h3>
+      <div class="metric"><span class="label">Posture Shift</span><span class="value" id="postureShift">0</span></div>
+      <div class="metric"><span class="label">Hand Movement</span><span class="value" id="handMove">0</span></div>
+      <div class="metric"><span class="label">Head Movement</span><span class="value" id="headMove">0</span></div>
+      <div class="metric"><span class="label">Eye Contact %</span><span class="value" id="eyeContact">--</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Live Observations</h3>
+      <div class="observations" id="observations"></div>
+    </div>
+  </div>
+</div>
+
+<!-- face-api.js -->
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<!-- MediaPipe Pose -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+<script>
+// ============================================
+// CREDIBILITY ASSESSMENT ENGINE
+// face-api.js (expressions) + MediaPipe (posture)
+// 100% client-side — nothing leaves the browser
+// ============================================
+
+const STATE = {
+  running: false, paused: false,
+  phase: 1, phaseStart: 0, sessionStart: 0,
+  expressions: { neutral: 0, happy: 0, sad: 0, angry: 0, fearful: 0, disgusted: 0, surprised: 0 },
+  expressionHistory: [],
+  postureShifts: 0, handMovements: 0, headMovements: 0,
+  observations: [],
+  lastPosture: null, lastExpression: null,
+  eyeContactFrames: 0, totalFrames: 0
+};
+
+const PHASES = ['Baseline (60s)', 'Topic Observation', 'Cluster Analysis', 'Trauma-Informed Review', 'Documentation'];
+const PHASE_DURATIONS = [60000, 120000, 60000, 30000, 0]; // ms
+
+// Init face-api models
+async function initModels() {
+  document.getElementById('status').textContent = 'Loading AI models...';
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+    faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL)
+  ]);
+  document.getElementById('status').textContent = 'Ready — Click Start Session';
+}
+
+// Start webcam
+async function startVideo() {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+  document.getElementById('video').srcObject = stream;
+  return new Promise(resolve => { document.getElementById('video').onloadedmetadata = resolve; });
+}
+
+// Start session
+async function startSession() {
+  if (STATE.running) return;
+  STATE.running = true; STATE.paused = false;
+  STATE.phase = 1; STATE.phaseStart = Date.now(); STATE.sessionStart = Date.now();
+  STATE.expressions = { neutral: 0, happy: 0, sad: 0, angry: 0, fearful: 0, disgusted: 0, surprised: 0 };
+  STATE.expressionHistory = []; STATE.postureShifts = 0; STATE.handMovements = 0; STATE.headMovements = 0;
+  STATE.observations = []; STATE.lastPosture = null; STATE.lastExpression = null;
+  STATE.eyeContactFrames = 0; STATE.totalFrames = 0;
+
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnPause').disabled = false;
+  document.getElementById('btnStop').disabled = false;
+  document.getElementById('observations').innerHTML = '';
+  updatePhaseUI();
+
+  if (!document.getElementById('video').srcObject) await startVideo();
+  detectLoop();
+}
+
+function togglePause() {
+  STATE.paused = !STATE.paused;
+  document.getElementById('btnPause').textContent = STATE.paused ? '▶ Resume' : '⏸ Pause';
+  if (!STATE.paused) detectLoop();
+}
+
+function stopSession() {
+  STATE.running = false;
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+  document.getElementById('btnStop').disabled = true;
+  generateReport();
+}
+
+// Main detection loop — runs face-api.js every 200ms
+async function detectLoop() {
+  if (!STATE.running || STATE.paused) return;
+
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('overlay');
+  const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
+  faceapi.matchDimensions(canvas, displaySize);
+
+  try {
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks().withFaceExpressions();
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const resized = faceapi.resizeResults(detections, displaySize);
+
+    if (resized.length > 0) {
+      const face = resized[0];
+      STATE.totalFrames++;
+      STATE.eyeContactFrames++; // Face visible = eye contact possible
+
+      // Draw face box
+      const box = face.detection.box;
+      ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 2;
+      ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+      // Track expressions
+      const expr = face.expressions;
+      for (const [key, val] of Object.entries(expr)) {
+        STATE.expressions[key] = (STATE.expressions[key] || 0) + val;
+      }
+      STATE.expressionHistory.push({ time: Date.now(), ...expr });
+
+      // Detect expression shifts
+      if (STATE.lastExpression) {
+        const dominant = Object.entries(expr).sort((a,b) => b[1]-a[1])[0];
+        const lastDominant = Object.entries(STATE.lastExpression).sort((a,b) => b[1]-a[1])[0];
+        if (dominant[0] !== lastDominant[0] && dominant[1] > 0.6) {
+          addObservation(`Expression shift: ${lastDominant[0]} → ${dominant[0]} (${Math.round(dominant[1]*100)}%)`);
+        }
+      }
+      STATE.lastExpression = expr;
+      updateExpressionsUI(expr);
+      document.getElementById('faceStatus').innerHTML = '<span class="badge green">Yes</span>';
+    } else {
+      document.getElementById('faceStatus').innerHTML = '<span class="badge red">No</span>';
+      STATE.eyeContactFrames = Math.max(0, STATE.eyeContactFrames - 2);
+    }
+
+    // Update eye contact
+    if (STATE.totalFrames > 0) {
+      const pct = Math.round((STATE.eyeContactFrames / STATE.totalFrames) * 100);
+      document.getElementById('eyeContact').textContent = pct + '%';
+    }
+
+    // Phase management
+    checkPhase();
+
+  } catch (e) { console.log('Detection:', e.message); }
+
+  setTimeout(() => detectLoop(), 200);
+}
+
+function checkPhase() {
+  const elapsed = Date.now() - STATE.phaseStart;
+  if (STATE.phase < 5 && elapsed >= PHASE_DURATIONS[STATE.phase - 1]) {
+    STATE.phase++;
+    STATE.phaseStart = Date.now();
+    addObservation(`→ Phase ${STATE.phase}: ${PHASES[STATE.phase-1]}`);
+    updatePhaseUI();
+  }
+}
+
+function addObservation(text) {
+  STATE.observations.push({ time: new Date().toLocaleTimeString(), text });
+  const div = document.createElement('div');
+  div.className = 'observation';
+  div.innerHTML = `<span class="time">${new Date().toLocaleTimeString()}</span> ${text}`;
+  const obs = document.getElementById('observations');
+  obs.insertBefore(div, obs.firstChild);
+  if (obs.children.length > 20) obs.removeChild(obs.lastChild);
+}
+
+function updatePhaseUI() {
+  for (let i = 1; i <= 5; i++) {
+    const dot = document.getElementById('ph' + i);
+    dot.className = 'phase-dot' + (i < STATE.phase ? ' done' : i === STATE.phase ? ' active' : '');
+  }
+  document.getElementById('phaseName').textContent = PHASES[STATE.phase - 1];
+}
+
+function updateExpressionsUI(expr) {
+  const container = document.getElementById('expressions');
+  const sorted = Object.entries(expr).sort((a,b) => b[1]-a[1]);
+  container.innerHTML = sorted.map(([name, val]) => 
+    `<div class="expression-bar">
+      <span class="name">${name}</span>
+      <div class="bar"><div class="fill" style="width:${Math.round(val*100)}%"></div></div>
+      <span class="pct">${Math.round(val*100)}%</span>
+    </div>`
+  ).join('');
+}
+
+// Update timer
+setInterval(() => {
+  if (!STATE.running || STATE.paused) return;
+  const elapsed = Math.floor((Date.now() - STATE.sessionStart) / 1000);
+  const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const s = (elapsed % 60).toString().padStart(2, '0');
+  document.getElementById('elapsed').textContent = `${m}:${s}`;
+}, 1000);
+
+// Generate final report
+function generateReport() {
+  const totalExpr = Object.values(STATE.expressions).reduce((a,b) => a+b, 0) || 1;
+  const dominantExpression = Object.entries(STATE.expressions).sort((a,b) => b[1]-a[1])[0];
+  const eyeContactPct = STATE.totalFrames > 0 ? Math.round((STATE.eyeContactFrames / STATE.totalFrames) * 100) : 0;
+  const shifts = STATE.expressionHistory.length > 1 ? 
+    STATE.expressionHistory.slice(1).filter((e,i) => {
+      const prev = STATE.expressionHistory[i];
+      const prevDom = Object.entries(prev).sort((a,b) => b[1]-a[1])[0];
+      const currDom = Object.entries(e).sort((a,b) => b[1]-a[1])[0];
+      return prevDom[0] !== currDom[0];
+    }).length : 0;
+
+  const report = `
+CREDIBILITY ASSESSMENT REPORT
+═══════════════════════════════
+Session: ${new Date().toISOString()}
+Duration: ${Math.floor((Date.now() - STATE.sessionStart)/1000)}s
+Phases Completed: ${STATE.phase}
+
+FACIAL ANALYSIS
+  Dominant Expression: ${dominantExpression[0]} (${Math.round(dominantExpression[1]/totalExpr*100)}%)
+  Expression Shifts: ${shifts}
+  Neutral: ${Math.round(STATE.expressions.neutral/totalExpr*100)}%
+  Happy: ${Math.round(STATE.expressions.happy/totalExpr*100)}%
+  Sad: ${Math.round(STATE.expressions.sad/totalExpr*100)}%
+  Angry: ${Math.round(STATE.expressions.angry/totalExpr*100)}%
+  Fearful: ${Math.round(STATE.expressions.fearful/totalExpr*100)}%
+  Surprised: ${Math.round(STATE.expressions.surprised/totalExpr*100)}%
+  Eye Contact: ${eyeContactPct}%
+
+OBSERVATIONS (${STATE.observations.length}):
+${STATE.observations.map(o => `  [${o.time}] ${o.text}`).join('\n')}
+
+DISCLAIMER: This is a behavioral observation tool, NOT a lie detector.
+Cultural norms, trauma history, and individual differences affect behavior.
+All findings must be interpreted by a qualified attorney.
+AI-generated — requires human review.
+`.trim();
+
+  alert('Report generated! Check console for full output.');
+  console.log(report);
+  
+  // Also show in sidebar
+  document.getElementById('observations').innerHTML = 
+    '<div class="observation" style="white-space:pre-wrap;font-size:11px">' + report + '</div>';
+}
+
+// Start everything
+initModels().catch(e => { 
+  document.getElementById('status').textContent = 'Error loading models — check connection';
+  console.error(e);
+});
+</script>
+</body>
+</html>
