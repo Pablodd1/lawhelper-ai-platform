@@ -23,9 +23,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ensure DATABASE_URL is properly configured
-if (!process.env.DATABASE_URL) {
-  console.error('❌ DATABASE_URL environment variable is required');
-  process.exit(1);
+const isProduction = process.env.NODE_ENV === 'production';
+const hasDatabase = process.env.DATABASE_URL;
+
+if (!hasDatabase) {
+  if (isProduction) {
+    console.warn('⚠️  DATABASE_URL not set — running in mock mode (no persistence)');
+    process.env.MOCK_MODE = 'true';
+  } else {
+    console.warn('⚠️  DATABASE_URL environment variable not set');
+    console.warn('📋 Running with SQLite fallback for development');
+  }
 }
 
 // Security middleware
@@ -61,20 +69,8 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Body parsing middleware
-app.use(compression());
-app.use(morgan('combined', {
-  stream: {
-    write: (message) => {
-      // Log to file
-      const fs = require('fs');
-      const logDir = path.join(__dirname, '../logs');
-      if (!fs.existsSync(logDir)) {
-        fs.mkdirSync(logDir, { recursive: true });
-      }
-      fs.appendFileSync(path.join(logDir, 'access.log'), message);
-    }
-  }
-}));
+// Update: Skip file logging in production (Vercel serverless)
+app.use(morgan(isProduction ? 'dev' : 'combined'));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -82,11 +78,11 @@ app.use(cookieParser());
 
 // Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'lawhelper-session-secret-key',
+  secret: process.env.SESSION_SECRET || require('crypto').randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
@@ -133,13 +129,19 @@ app.use('/api/*', (req, res, next) => {
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
-    const dbStatus = await dbHealthCheck();
+    let dbStatus = 'disconnected';
+    try {
+      const connected = await dbHealthCheck();
+      dbStatus = connected ? 'connected' : 'disconnected';
+    } catch (e) {
+      dbStatus = process.env.MOCK_MODE === 'true' ? 'mock' : 'disconnected';
+    }
     res.json({
       success: true,
       message: 'LawHelper Attorney App is running',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
-      database: dbStatus ? 'connected' : 'disconnected',
+      database: dbStatus,
       environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
