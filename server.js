@@ -864,5 +864,186 @@ if (!process.env.VERCEL) {
     console.log(`⚖️ LawHelper AI Platform v2.0 running on port ${PORT}`);
     console.log(`🔍 Legal research engine ready`);
     console.log(`📄 Document generator loaded with ${Object.values(legalTemplates).reduce((sum, cat) => sum + Object.keys(cat).length, 0)} templates`);
+    initRAGSystem().catch(e => console.log('RAG init deferred:', e.message));
   });
 }
+
+// ═══════════════════════════════════════════════
+// RAG VECTOR SYSTEM — Supabase pgvector
+// ═══════════════════════════════════════════════
+
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const EMBEDDING_MODEL = 'text-embedding-3-small';
+const EMBEDDING_DIM = 1536;
+
+// In-memory vector store (fallback when Supabase unavailable)
+const memVectorStore = [];
+let supabaseClient = null;
+
+// Initialize Supabase if credentials available
+if (SUPABASE_URL && SUPABASE_KEY) {
+    try {
+        const { createClient } = require('@supabase/supabase-js');
+        supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log('✅ Supabase client initialized');
+    } catch (e) {
+        console.log('⚠️ Supabase client not available (npm install @supabase/supabase-js)');
+    }
+}
+
+// Generate embeddings via OpenAI (with simple fallback)
+async function generateEmbedding(text) {
+    if (!text || text.length < 10) return null;
+    
+    // Try OpenAI embeddings
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 20) {
+        try {
+            const resp = await axios.post('https://api.openai.com/v1/embeddings', {
+                model: EMBEDDING_MODEL, input: text.slice(0, 8000)
+            }, { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 15000 });
+            return resp.data.data[0].embedding;
+        } catch (e) {
+            console.log(`Embedding API error: ${e.message}`);
+        }
+    }
+    
+    // Simple TF-IDF-like fallback embedding (not as good but works offline)
+    const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+    const embedding = new Array(EMBEDDING_DIM).fill(0);
+    for (let i = 0; i < Math.min(words.length, EMBEDDING_DIM); i++) {
+        const hash = words[i].split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+        embedding[hash % EMBEDDING_DIM] += 1;
+    }
+    // Normalize
+    const mag = Math.sqrt(embedding.reduce((s, v) => s + v * v, 0)) || 1;
+    return embedding.map(v => v / mag);
+}
+
+// Cosine similarity
+function cosineSim(a, b) {
+    if (!a || !b || a.length !== b.length) return 0;
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; magA += a[i] * a[i]; magB += b[i] * b[i]; }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB) || 1);
+}
+
+// Ingest document into RAG
+async function ingestDocument(title, content, category, source) {
+    const embedding = await generateEmbedding(content);
+    if (!embedding) return null;
+    
+    const doc = { id: `rag-${Date.now()}-${Math.random().toString(36).slice(2,8)}`, title, content, category, source, embedding, created_at: new Date().toISOString() };
+    
+    // Store in Supabase if available
+    if (supabaseClient) {
+        try {
+            await supabaseClient.from('legal_knowledge').insert({
+                title, content, category, source, embedding
+            });
+        } catch (e) { console.log('Supabase insert deferred'); }
+    }
+    
+    // Always store in memory
+    memVectorStore.push(doc);
+    return doc;
+}
+
+// Semantic search
+async function searchRAG(query, topK = 5, categoryFilter = null) {
+    const queryEmbedding = await generateEmbedding(query);
+    if (!queryEmbedding) return [];
+    
+    let results = memVectorStore;
+    
+    // Search Supabase if available
+    if (supabaseClient) {
+        try {
+            const { data } = await supabaseClient.rpc('search_legal_knowledge', {
+                query_embedding: queryEmbedding,
+                match_threshold: 0.5,
+                match_count: topK,
+                filter_category: categoryFilter || null
+            });
+            if (data?.length) results = data;
+        } catch (e) { /* fallback to memory */ }
+    }
+    
+    // Score and rank
+    const scored = results
+        .filter(d => !categoryFilter || d.category === categoryFilter)
+        .map(d => ({ ...d, score: cosineSim(queryEmbedding, d.embedding) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, topK);
+    
+    return scored;
+}
+
+// Initialize RAG with immigration knowledge
+async function initRAGSystem() {
+    console.log('🔧 Initializing RAG vector system...');
+    const docs = [];
+    
+    // Statutes
+    for (const [name, info] of Object.entries(immigrationKnowledge.statutes)) {
+        docs.push({ title: `Statute: ${name}`, content: `${info.cite}: ${info.summary}`, category: 'statutes', source: 'INA' });
+    }
+    
+    // Key cases
+    for (const c of immigrationKnowledge.keyCases) {
+        docs.push({ title: c.name, content: `${c.cite} — ${c.holding}`, category: 'case_law', source: 'BIA/AG' });
+    }
+    
+    // Deadlines
+    for (const d of immigrationKnowledge.deadlines) {
+        docs.push({ title: `Deadline: ${d.event}`, content: `${d.event}: ${d.deadline}. Exceptions: ${d.exceptions}`, category: 'deadlines', source: 'USCIS/EOIR' });
+    }
+    
+    // Credibility framework
+    if (immigrationKnowledge.credibility) {
+        docs.push({ title: 'Credibility Assessment Framework', 
+            content: `Demeanor factors: ${immigrationKnowledge.credibility.demeanorFactors.join(', ')}. Trauma: ${immigrationKnowledge.credibility.traumaConsiderations}. Cultural: ${immigrationKnowledge.credibility.culturalNotes}`, 
+            category: 'procedure', source: 'Best Practices' });
+    }
+    
+    for (const doc of docs) {
+        await ingestDocument(doc.title, doc.content, doc.category, doc.source);
+    }
+    
+    console.log(`✅ RAG system initialized with ${docs.length} documents in vector store`);
+}
+
+// --- RAG API Endpoints ---
+
+// Search RAG knowledge
+app.post('/api/rag/search', async (req, res) => {
+    try {
+        const { query, topK = 5, category } = req.body;
+        if (!query) return res.status(400).json({ error: 'Query required' });
+        
+        const results = await searchRAG(query, topK, category);
+        res.json({ success: true, query, count: results.length, results: results.map(r => ({ title: r.title, content: r.content, category: r.category, score: r.score, source: r.source })) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Ingest document
+app.post('/api/rag/ingest', async (req, res) => {
+    try {
+        const { title, content, category, source } = req.body;
+        if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
+        
+        const doc = await ingestDocument(title, content, category || 'general', source || 'user');
+        res.json({ success: true, document: { id: doc.id, title: doc.title, category: doc.category } });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// RAG stats
+app.get('/api/rag/stats', (req, res) => {
+    const cats = {};
+    memVectorStore.forEach(d => { cats[d.category] = (cats[d.category] || 0) + 1; });
+    res.json({ success: true, total: memVectorStore.length, categories: cats, storage: supabaseClient ? 'supabase+memory' : 'memory' });
+});
