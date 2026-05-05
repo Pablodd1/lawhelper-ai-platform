@@ -892,29 +892,29 @@ if (SUPABASE_URL && SUPABASE_KEY) {
     }
 }
 
-// Generate embeddings — Ollama local first, OpenAI cloud, TF-IDF fallback
+// Generate embeddings — Ollama bge-m3 local first, llama fallback, OpenAI cloud, TF-IDF last
 async function generateEmbedding(text) {
     if (!text || text.length < 10) return null;
     
-    // 1. Try Ollama local embedding (nomic-embed-text or llama)
+    // 1. Try Ollama bge-m3 (specialized embedding model, 1024-dim, local & free)
     if (OLLAMA_HOST && OLLAMA_HOST.includes('11434')) {
         try {
             const resp = await axios.post(`${OLLAMA_HOST}/api/embeddings`, {
-                model: 'nomic-embed-text',
+                model: 'bge-m3:latest',
                 prompt: text.slice(0, 4000)
             }, { timeout: 15000 });
             if (resp.data?.embedding?.length) {
-                return resp.data.embedding;
+                return { vector: resp.data.embedding, dim: resp.data.embedding.length, provider: 'ollama-bge-m3' };
             }
         } catch (e) {
-            // Try with llama as fallback embedder
+            // Try llama as fallback embedder
             try {
                 const resp2 = await axios.post(`${OLLAMA_HOST}/api/embeddings`, {
                     model: OLLAMA_MODEL,
                     prompt: text.slice(0, 4000)
                 }, { timeout: 15000 });
                 if (resp2.data?.embedding?.length) {
-                    return resp2.data.embedding;
+                    return { vector: resp2.data.embedding, dim: resp2.data.embedding.length, provider: 'ollama-llama' };
                 }
             } catch (e2) { /* fall through */ }
         }
@@ -926,38 +926,49 @@ async function generateEmbedding(text) {
             const resp = await axios.post('https://api.openai.com/v1/embeddings', {
                 model: EMBEDDING_MODEL, input: text.slice(0, 8000)
             }, { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' }, timeout: 15000 });
-            return resp.data.data[0].embedding;
+            const vec = resp.data.data[0].embedding;
+            return { vector: vec, dim: vec.length, provider: 'openai' };
         } catch (e) {
             console.log(`Embedding API error: ${e.message}`);
         }
     }
     
-    // Simple TF-IDF-like fallback embedding (not as good but works offline)
+    // 3. TF-IDF fallback (works offline, low accuracy)
     const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
     const embedding = new Array(EMBEDDING_DIM).fill(0);
     for (let i = 0; i < Math.min(words.length, EMBEDDING_DIM); i++) {
         const hash = words[i].split('').reduce((a, c) => a + c.charCodeAt(0), 0);
         embedding[hash % EMBEDDING_DIM] += 1;
     }
-    // Normalize
     const mag = Math.sqrt(embedding.reduce((s, v) => s + v * v, 0)) || 1;
-    return embedding.map(v => v / mag);
+    return { vector: embedding.map(v => v / mag), dim: EMBEDDING_DIM, provider: 'tfidf' };
 }
 
-// Cosine similarity
+// Cosine similarity (handles different dimensions by padding shorter vector)
 function cosineSim(a, b) {
-    if (!a || !b || a.length !== b.length) return 0;
+    if (!a || !b) return 0;
+    const len = Math.max(a.length, b.length);
     let dot = 0, magA = 0, magB = 0;
-    for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; magA += a[i] * a[i]; magB += b[i] * b[i]; }
+    for (let i = 0; i < len; i++) { 
+        const va = a[i] || 0, vb = b[i] || 0;
+        dot += va * vb; magA += va * va; magB += vb * vb; 
+    }
     return dot / (Math.sqrt(magA) * Math.sqrt(magB) || 1);
 }
 
 // Ingest document into RAG
 async function ingestDocument(title, content, category, source) {
-    const embedding = await generateEmbedding(content);
-    if (!embedding) return null;
+    const embResult = await generateEmbedding(content);
+    if (!embResult) return null;
     
-    const doc = { id: `rag-${Date.now()}-${Math.random().toString(36).slice(2,8)}`, title, content, category, source, embedding, created_at: new Date().toISOString() };
+    const doc = { 
+        id: `rag-${Date.now()}-${Math.random().toString(36).slice(2,8)}`, 
+        title, content, category, source, 
+        embedding: embResult.vector, 
+        dim: embResult.dim,
+        provider: embResult.provider,
+        created_at: new Date().toISOString() 
+    };
     
     // Store in Supabase if available
     if (supabaseClient) {
@@ -975,8 +986,9 @@ async function ingestDocument(title, content, category, source) {
 
 // Semantic search
 async function searchRAG(query, topK = 5, categoryFilter = null) {
-    const queryEmbedding = await generateEmbedding(query);
-    if (!queryEmbedding) return [];
+    const embResult = await generateEmbedding(query);
+    if (!embResult) return [];
+    const queryEmbedding = embResult.vector;
     
     let results = memVectorStore;
     
