@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const natural = require('natural');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -847,7 +848,7 @@ app.get('/api/immigration/cases/:id', (req, res) => {
 });
 
 // Serve static files
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -872,10 +873,10 @@ if (!process.env.VERCEL) {
 // RAG VECTOR SYSTEM — Supabase pgvector
 // ═══════════════════════════════════════════════
 
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
-const EMBEDDING_MODEL = 'text-embedding-3-small';
-const EMBEDDING_DIM = 1536;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://felovxfpstnfhwmgsqww.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlbG92eGZwc3RuZmh3bWdzcXd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NjI2ODEsImV4cCI6MjA4NjAzODY4MX0.suMqvjbYJRWNz73hea5vdMOHx1Unpw1qRsEibuAEEjE';
+const EMBEDDING_MODEL = 'bge-m3';
+const EMBEDDING_DIM = 1024;
 
 // In-memory vector store (fallback when Supabase unavailable)
 const memVectorStore = [];
